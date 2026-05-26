@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>🦎 아잔틱 스캐너</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Pretendard','Segoe UI',sans-serif;background:#f4f6f8;min-height:100vh;color:#111}
+.wrap{max-width:1080px;margin:0 auto;padding:28px 16px}
+.hdr{margin-bottom:24px}
+.title{font-size:22px;font-weight:700;display:flex;align-items:center;gap:10px}
+.title-badge{font-size:11px;padding:3px 10px;border-radius:12px;background:#d1fae5;color:#065f46;font-weight:600}
+.sub{font-size:12px;color:#6b7280;margin-top:5px}
+
+.scan-card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:20px;margin-bottom:18px}
+.scan-btn{width:100%;padding:14px;font-size:15px;font-weight:700;background:#059669;color:#fff;border:none;border-radius:10px;cursor:pointer;transition:background .15s;display:flex;align-items:center;justify-content:center;gap:8px}
+.scan-btn:hover{background:#047857}
+.scan-btn:disabled{opacity:.5;cursor:not-allowed}
+.scan-btn .spin{width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:none}
+.scan-btn.loading .spin{display:block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.log{margin-top:10px;font-size:12px;color:#6b7280;min-height:18px}
+.log.ok{color:#059669;font-weight:500}
+.log.err{color:#dc2626}
+
+.filter-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.filter-row select{font-size:12px;padding:5px 10px;border:1px solid #e5e7eb;border-radius:7px;background:#fff;color:#374151;cursor:pointer}
+
+.stats{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.stat{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:10px 18px;flex:1;min-width:110px}
+.stat-n{font-size:22px;font-weight:700;color:#059669}
+.stat-l{font-size:10px;color:#9ca3af;margin-top:2px}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:14px}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;cursor:pointer;transition:all .15s;text-decoration:none;color:inherit;display:block}
+.card:hover{border-color:#059669;transform:translateY(-2px);box-shadow:0 4px 14px rgba(0,0,0,.08)}
+
+.img-wrap{width:100%;aspect-ratio:1;background:#f3f4f6;position:relative;overflow:hidden}
+.img-wrap img{width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .3s}
+.img-wrap img.vis{opacity:1}
+.img-ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:40px}
+.src-tag{position:absolute;top:7px;left:7px;font-size:9px;font-weight:700;padding:2px 8px;border-radius:8px}
+.t-feedle{background:#d1fae5;color:#065f46}
+.t-pasamo{background:#fef3c7;color:#92400e}
+
+.card-body{padding:11px 13px}
+.card-name{font-size:12px;font-weight:600;color:#111;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-meta{font-size:10px;color:#9ca3af;margin-bottom:7px}
+.card-price{font-size:16px;font-weight:700;color:#059669;margin-bottom:2px}
+.card-link{display:block;text-align:center;font-size:11px;font-weight:500;padding:6px;border:1px solid #e5e7eb;border-radius:7px;color:#1d4ed8;margin-top:8px;text-decoration:none}
+.card-link:hover{background:#eff6ff}
+
+.empty{text-align:center;padding:3rem;color:#9ca3af;grid-column:1/-1}
+.empty p{font-size:14px;margin-bottom:6px}
+
+.setup-notice{background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:14px 16px;margin-bottom:16px;font-size:12px;color:#92400e;line-height:1.7;display:none}
+.setup-notice b{color:#78350f}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <div class="title">🦎 아잔틱 스캐너 <span class="title-badge">Axanthic Fixed</span></div>
+    <div class="sub">피들(한국) + 파사모 · 버튼 하나로 아잔틱 전체 검색</div>
+  </div>
+
+  <div class="setup-notice" id="setupNotice">
+    <b>⚠ 서버 연결 안됨</b> — Railway 서버가 실행 중인지 확인해주세요.<br>
+    환경변수 <b>FEEDLE_TOKEN</b>과 <b>NAVER_COOKIE</b>가 설정돼 있어야 합니다.
+  </div>
+
+  <div class="scan-card">
+    <button class="scan-btn" id="scanBtn" onclick="startScan()">
+      <div class="spin"></div>
+      ⚡ 아잔틱 전체 스캔
+    </button>
+    <div class="log" id="log">버튼을 눌러 피들 + 파사모를 동시에 스캔합니다</div>
+  </div>
+
+  <div class="filter-row">
+    <select id="fSort" onchange="render()">
+      <option value="">최신순</option>
+      <option value="asc">가격 낮은순</option>
+      <option value="desc">가격 높은순</option>
+    </select>
+    <select id="fSrc" onchange="render()">
+      <option value="">전체 소스</option>
+      <option value="feedle">피들만</option>
+      <option value="pasamo">파사모만</option>
+    </select>
+    <select id="fSex" onchange="render()">
+      <option value="">전체 성별</option>
+      <option value="수컷">수컷</option>
+      <option value="암컷">암컷</option>
+      <option value="미구분">미구분</option>
+    </select>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-n" id="s1">-</div><div class="stat-l">전체 개체</div></div>
+    <div class="stat"><div class="stat-n" id="s2">-</div><div class="stat-l">피들</div></div>
+    <div class="stat"><div class="stat-n" id="s3">-</div><div class="stat-l">파사모</div></div>
+    <div class="stat"><div class="stat-n" id="s4">-</div><div class="stat-l">최저가</div></div>
+  </div>
+
+  <div class="grid" id="grid">
+    <div class="empty"><p>스캔 버튼을 눌러주세요</p></div>
+  </div>
+</div>
+
+<script>
+// Railway 배포 후 아래 URL을 실제 Railway URL로 교체하세요
+const SERVER_URL = window.location.origin;
+
+let allData = [];
+
+async function startScan() {
+  const btn = document.getElementById('scanBtn');
+  const log = document.getElementById('log');
+  btn.disabled = true;
+  btn.classList.add('loading');
+  btn.querySelector('.spin').style.display = 'block';
+  setLog('피들 + 파사모 스캔 중...', '');
+  allData = [];
+  updateStats([]);
+
+  try {
+    const res = await fetch(`${SERVER_URL}/api/search`);
+    if (!res.ok) throw new Error(`서버 오류: ${res.status}`);
+    const data = await res.json();
+
+    if (!data.success) throw new Error(data.error || '알 수 없는 오류');
+
+    allData = data.data || [];
+    document.getElementById('setupNotice').style.display = 'none';
+    setLog(`✓ 스캔 완료 — 피들 ${data.feedleCount}개 + 파사모 ${data.pasamoCount}개`, 'ok');
+    render();
+  } catch (e) {
+    setLog(`오류: ${e.message}`, 'err');
+    document.getElementById('setupNotice').style.display = 'block';
+  }
+
+  btn.disabled = false;
+  btn.classList.remove('loading');
+}
+
+function setLog(msg, type) {
+  const el = document.getElementById('log');
+  el.textContent = msg;
+  el.className = 'log' + (type ? ' ' + type : '');
+}
+
+function render() {
+  const sort = document.getElementById('fSort').value;
+  const src = document.getElementById('fSrc').value;
+  const sex = document.getElementById('fSex').value;
+
+  let list = allData.filter(p =>
+    (!src || p.src === src) &&
+    (!sex || p.sex === sex)
+  );
+  if (sort === 'asc') list.sort((a, b) => a.price - b.price);
+  else if (sort === 'desc') list.sort((a, b) => b.price - a.price);
+
+  updateStats(list);
+  const grid = document.getElementById('grid');
+
+  if (!list.length) {
+    grid.innerHTML = '<div class="empty"><p>결과 없음</p><small>필터를 조정하거나 다시 스캔해보세요</small></div>';
+    return;
+  }
+
+  grid.innerHTML = list.map(p => {
+    const tc = p.src === 'feedle' ? 't-feedle' : 't-pasamo';
+    const tl = p.src === 'feedle' ? '피들' : '파사모';
+    const im = p.img ? `<img src="${p.img}" alt="${p.name}" onload="this.classList.add('vis')" onerror="this.style.display='none'">` : '';
+    const ph = p.img ? 'style="display:none"' : '';
+    const meta = [p.sex, p.size, p.region, p.seller].filter(Boolean).join(' · ');
+    return `<a class="card" href="${p.url}" target="_blank">
+      <div class="img-wrap">
+        ${im}
+        <div class="img-ph" ${ph}>🦎</div>
+        <span class="src-tag ${tc}">${tl}</span>
+      </div>
+      <div class="card-body">
+        <div class="card-name" title="${p.name}">${p.name}</div>
+        ${meta ? `<div class="card-meta">${meta}</div>` : ''}
+        <div class="card-price">${p.priceDisplay}</div>
+        <span class="card-link">상세 페이지 →</span>
+      </div>
+    </a>`;
+  }).join('');
+}
+
+function updateStats(list) {
+  const fl = list.filter(p => p.src === 'feedle').length;
+  const pl = list.filter(p => p.src === 'pasamo').length;
+  const min = list.length ? Math.min(...list.map(p => p.price)) : 0;
+  document.getElementById('s1').textContent = list.length;
+  document.getElementById('s2').textContent = fl;
+  document.getElementById('s3').textContent = pl;
+  document.getElementById('s4').textContent = min ? min.toLocaleString() + '원' : '-';
+}
+</script>
+</body>
+</html>
