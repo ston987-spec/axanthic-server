@@ -195,4 +195,30 @@ function guessSize(t){return/베이비|baby/i.test(t)?'베이비':/주브나일|
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
  
 const PORT = process.env.PORT || 3000;
+app.get('/api/debug', async (req, res) => {
+  try {
+    const r = await fetch('https://www.feedle.me/?species=0001&trait=0013', {
+      headers: {
+        'Cookie': FEEDLE_COOKIE,
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'text/html',
+        'Accept-Language': 'ko-KR,ko;q=0.9'
+      }
+    });
+    const html = await r.text();
+    const hasPet = html.includes('/pet/');
+    const hasAxanthic = html.includes('아잔틱');
+    const cookieUsed = FEEDLE_COOKIE ? FEEDLE_COOKIE.slice(0, 30) + '...' : '없음';
+    res.json({
+      status: r.status,
+      hasPet,
+      hasAxanthic,
+      cookieUsed,
+      htmlLen: html.length,
+      sample: html.slice(0, 500)
+    });
+  } catch(e) {
+    res.json({ error: e.message });
+  }
+});
 app.listen(PORT, () => console.log(`서버 실행 중: http://localhost:${PORT}`));
