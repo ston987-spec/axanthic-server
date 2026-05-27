@@ -9,6 +9,7 @@ app.use(express.json());
 app.use(express.static('public'));
  
 const FEEDLE_COOKIE = process.env.FEEDLE_COOKIE || '';
+const FEEDLE_TOKEN = process.env.FEEDLE_TOKEN || '';
 const NAVER_COOKIE = process.env.NAVER_COOKIE || '';
  
 // ── 피들 한국 HTML 파싱 방식 ──
@@ -19,11 +20,13 @@ app.get('/api/feedle', async (req, res) => {
       const url = `https://www.feedle.me/?species=0001&trait=0013&page=${page}`;
       const r = await fetch(url, {
         headers: {
-          'Cookie': FEEDLE_COOKIE,
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Accept': 'text/html,application/xhtml+xml',
-          'Accept-Language': 'ko-KR,ko;q=0.9'
-        }
+  'Cookie': `${FEEDLE_COOKIE}; sb-api-auth-token=${FEEDLE_TOKEN}`,
+  'Authorization': `Bearer ${FEEDLE_TOKEN}`,
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+  'Accept': 'text/html,application/xhtml+xml',
+  'Accept-Language': 'ko-KR,ko;q=0.9',
+  'Referer': 'https://www.feedle.me'
+}
       });
       if (!r.ok) break;
       const html = await r.text();
